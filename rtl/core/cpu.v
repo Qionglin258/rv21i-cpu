@@ -1,11 +1,16 @@
 module cpu(
     input clk,
     input arst_n,
+    input [31:0] mem_rdata,
+    output [31:0] mem_addr,
+    output [31:0] mem_wdata,
+    output mem_we,
     output [31:0] pc,
     output [31:0] instr,
     output [31:0] alu_result,
     output reg [31:0] reg_wdata
 );
+
 reg [31:0] next_pc;
 wire [31:0] pc_plus4;
 wire [31:0] rs1_data;
@@ -17,7 +22,6 @@ wire [31:0] dmem_rdata;
 wire [2:0] imm_type;
 wire alu_src;
 wire [3:0] alu_ctrl;
-wire mem_we;
 wire reg_we;
 wire [1:0] wb_sel;
 wire [1:0] pc_sel;
@@ -52,7 +56,7 @@ pc u_pc(
 );
 
 imem u_imem(
-    .addr(pc[9:2]),
+    .addr(pc[11:2]),
     .rdata(instr)
 );
 
@@ -95,14 +99,6 @@ alu u_alu(
     .alu_ctrl(alu_ctrl),
     .result(alu_result),
     .zero(zero)
-);
-
-dmem u_dmem(
-    .clk(clk),
-    .we(mem_we),
-    .addr(alu_result[9:2]),
-    .wdata(rs2_data),
-    .rdata(dmem_rdata)
 );
 
 endmodule

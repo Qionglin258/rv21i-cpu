@@ -1,11 +1,11 @@
 module dmem (
     input         clk,
     input         we,        // write enable
-    input  [7:0]  addr,      // address for read/write
+    input  [9:0]  addr,      // address for read/write
     input  [31:0] wdata,     // data to write
     output [31:0] rdata      // data read
 );
-reg [31:0] mem [255:0]; // 256 times 32 bits memory
+reg [31:0] mem [0:1023]; // same as []a,the [] before indicates the length while the [] after indicates how many elements there are
 assign rdata = mem[addr]; // read operation
 always @(posedge clk) begin
     if (we) begin

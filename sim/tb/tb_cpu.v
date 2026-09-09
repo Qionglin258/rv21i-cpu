@@ -25,7 +25,7 @@ initial begin
     arst_n = 1'b0;
     #15;
     arst_n = 1'b1;
-    #4200;
+    #1000;
     $finish;
 end
 

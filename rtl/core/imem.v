@@ -1,11 +1,11 @@
 module imem (
-    input  [7:0] addr,
+    input  [9:0] addr,
     output [31:0] rdata
 );
-reg [31:0] mem [255:0]; // reg for storage,256 × 32 bits
+reg [31:0] mem [0:1023]; // 1024 x 32-bit instruction words,it doesn't matter whether 0-1023 or 1023-0,but be consistent with readmemh
 assign rdata = mem[addr]; // read operation
 initial begin
-    $readmemh("imem.hex", mem);
+    $readmemh("imem.hex", mem, 0, 1023);
 end
 
 endmodule
