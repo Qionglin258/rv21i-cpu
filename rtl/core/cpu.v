@@ -21,17 +21,19 @@ wire mem_we;
 wire reg_we;
 wire [1:0] wb_sel;
 wire [1:0] pc_sel;
-wire [31:0] jump_target;
+wire [31:0] pc_relative_target;
+wire [31:0] jalr_target;
 
 assign pc_plus4 = pc + 32'd4;
-assign jump_target = pc + imm_out;
+assign pc_relative_target = pc + imm_out;
+assign jalr_target = alu_result; // rs1 + immediate
 assign alu_b = alu_src ? imm_out : rs2_data;
 
 always@(*) begin
     case(pc_sel)
         2'b00: next_pc = pc_plus4; // PC + 4
-        2'b01: next_pc = jump_target; // Jump target
-        2'b10: next_pc = alu_result; // Branch target
+        2'b01: next_pc = pc_relative_target; // JAL / B target
+        2'b10: next_pc = jalr_target; // JALR target
         default: next_pc = pc_plus4; // Default to PC + 4
     endcase
     case (wb_sel)
