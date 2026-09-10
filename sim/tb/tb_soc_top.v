@@ -31,7 +31,7 @@ initial begin
 
 	#20;
 	arst_n = 1'b1;
-	#1000;
+	#20000;
 
 	$finish;
 end

@@ -10,7 +10,7 @@ module uart(
 );
 // send only
 localparam CLK_FREQ = 100000000; // 100 MHz
-localparam BAUD_RATE = 9600; // 9600 bps
+localparam BAUD_RATE = 50000000; // 50 Mbps for simulation
 localparam DIVISOR = CLK_FREQ / BAUD_RATE;
 reg [15:0] baud_cnt;
 reg [3:0]  bit_cnt;

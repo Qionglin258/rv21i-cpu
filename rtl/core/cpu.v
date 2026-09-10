@@ -18,12 +18,12 @@ wire [31:0] rs2_data;
 wire [31:0] imm_out;
 wire [31:0] alu_b;
 wire zero;
-wire [31:0] dmem_rdata;
 wire [2:0] imm_type;
 wire alu_src;
 wire [3:0] alu_ctrl;
 wire reg_we;
 wire [1:0] wb_sel;
+wire load_byte;
 wire [1:0] pc_sel;
 wire [31:0] pc_relative_target;
 wire [31:0] jalr_target;
@@ -32,6 +32,8 @@ assign pc_plus4 = pc + 32'd4;
 assign pc_relative_target = pc + imm_out;
 assign jalr_target = alu_result; // rs1 + immediate
 assign alu_b = alu_src ? imm_out : rs2_data;
+assign mem_addr = alu_result;
+assign mem_wdata = rs2_data;
 
 always@(*) begin
     case(pc_sel)
@@ -42,7 +44,18 @@ always@(*) begin
     endcase
     case (wb_sel)
         2'b00: reg_wdata = alu_result; // ALU result
-        2'b01: reg_wdata = dmem_rdata; // Data memory read data
+        2'b01: begin
+            if (load_byte) begin
+                case (alu_result[1:0])
+                    2'b00: reg_wdata = {24'd0, mem_rdata[7:0]};
+                    2'b01: reg_wdata = {24'd0, mem_rdata[15:8]};
+                    2'b10: reg_wdata = {24'd0, mem_rdata[23:16]};
+                    default: reg_wdata = {24'd0, mem_rdata[31:24]};
+                endcase
+            end else begin
+                reg_wdata = mem_rdata;
+            end
+        end
         2'b10: reg_wdata = pc_plus4; // PC + 4
         default: reg_wdata = 32'd0; // Default to zero
     endcase
@@ -56,7 +69,7 @@ pc u_pc(
 );
 
 imem u_imem(
-    .addr(pc[11:2]),
+    .addr(pc[11:0]),
     .rdata(instr)
 );
 
@@ -90,6 +103,7 @@ CU u_cu(
     .mem_we(mem_we),
     .reg_we(reg_we),
     .wb_sel(wb_sel),
+    .load_byte(load_byte),
     .pc_sel(pc_sel)
 );
 

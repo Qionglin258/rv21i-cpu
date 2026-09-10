@@ -10,7 +10,8 @@ module CU (
     output reg [2:0] imm_type,
     output reg reg_we,
     output reg mem_we,
-    output reg [1:0]wb_sel
+    output reg [1:0]wb_sel,
+    output reg load_byte
 );
 always@(*) begin
     // Default values
@@ -21,6 +22,7 @@ always@(*) begin
     reg_we = 1'b0;
     mem_we = 1'b0;
     wb_sel = 2'b0;
+    load_byte = 1'b0;
 
     case (opcode)
         7'b0110011: begin // R-type
@@ -58,12 +60,19 @@ always@(*) begin
                 default: alu_ctrl = 4'b0000; // Default to ADDI
             endcase
         end
+        7'b0110111: begin // LUI
+            alu_src = 1'b1;
+            reg_we = 1'b1;
+            imm_type = 3'b100;
+            alu_ctrl = 4'b0000;
+        end
         7'b0000011: begin // Iw only
             alu_src = 1'b1;
             reg_we = 1'b1;
             imm_type = 3'b001;
             alu_ctrl = 4'b0000;
             wb_sel = 2'b1;
+            load_byte = (funct3 == 3'b100);
         end
         7'b0100011: begin // Sw only
             alu_src = 1'b1;
@@ -75,8 +84,8 @@ always@(*) begin
             imm_type = 3'b011; // Immediate type for B-type
             alu_ctrl = 4'b0001; // SUB for comparison
             case (funct3)
-                3'b000: pc_sel = zero; // BEQ:jump if equal
-                3'b001: pc_sel = ~zero; // BNE
+                3'b000: pc_sel = zero ? 2'b01 : 2'b00; // BEQ
+                3'b001: pc_sel = zero ? 2'b00 : 2'b01; // BNE
                 3'b100: begin
                     alu_ctrl = 4'b0011; // SLT for BLT
                     pc_sel = alu_result[0] ? 2'b01 : 2'b00; // Jump if less than
@@ -93,7 +102,7 @@ always@(*) begin
                     alu_ctrl = 4'b0100; // SLTU for BGEU
                     pc_sel = alu_result[0] ? 2'b00 : 2'b01; // Jump if greater than or equal unsigned
                 end
-                default: pc_sel = 1'b0; // Default to not taken
+                default: pc_sel = 2'b00; // Default to not taken
             endcase
         end
         7'b1101111: begin // JAL
