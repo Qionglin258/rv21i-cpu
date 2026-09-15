@@ -71,4 +71,14 @@ uart u_uart(
     .uart_rx(uart_rx)
 );
 
+gpio u_gpio(
+    .clk(clk),
+    .arst_n(arst_n),
+    .addr(gpio_addr),
+    .wdata(gpio_wdata),
+    .we(gpio_we),
+    .rdata(gpio_rdata),
+    .gpio_io(gpio_io)
+);
+
 endmodule
