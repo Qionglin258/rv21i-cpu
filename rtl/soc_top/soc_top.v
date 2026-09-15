@@ -6,7 +6,8 @@ module soc_top(
     output [31:0] alu_result,
     output [31:0] reg_wdata,
     output        uart_tx,
-    input         uart_rx
+    input         uart_rx,
+    inout  [7:0]  gpio_io
 );
 
 wire [31:0] mem_addr;
@@ -23,6 +24,11 @@ wire [3:0]  uart_addr;
 wire [31:0] uart_wdata;
 wire        uart_we;
 wire [31:0] uart_rdata;
+
+wire [3:0]  gpio_addr;
+wire [31:0] gpio_wdata;
+wire        gpio_we;
+wire [31:0] gpio_rdata;
 
 cpu u_cpu(
     .clk(clk),
@@ -49,7 +55,11 @@ simple_bus u_simple_bus(
     .uart_addr(uart_addr),
     .uart_wdata(uart_wdata),
     .uart_we(uart_we),
-    .uart_rdata(uart_rdata)
+    .uart_rdata(uart_rdata),
+    .gpio_addr(gpio_addr),
+    .gpio_wdata(gpio_wdata),
+    .gpio_we(gpio_we),
+    .gpio_rdata(gpio_rdata)
 );
 
 dmem u_dmem(

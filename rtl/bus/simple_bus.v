@@ -12,7 +12,7 @@ module simple_bus(
     output reg  [3:0]  uart_addr,
     output reg  [31:0] uart_wdata,
     output reg         uart_we,
-    input  [31:0] uart_rdata
+    input  [31:0] uart_rdata,
 
     output reg [3:0]  gpio_addr,
     output reg [31:0] gpio_wdata,
