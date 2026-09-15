@@ -1,0 +1,52 @@
+m255
+K4
+z2
+13
+!s112 1.1
+!i10d 8192
+!i10e 25
+!i10f 100
+cModel Technology
+Z0 dD:/FGPAworks4github/rv32i_min_cpu/sim
+vtb_uart
+Z1 !s110 1789459767
+!i10b 1
+!s100 CX^IdzcET`OReo`omUozK1
+IQO=b2WaB_JMAz[9EIR4m[1
+Z2 VDg1SIo80bB@j0V0VzS_@n1
+R0
+Z3 w1789459759
+8tb/tb_uart.v
+Ftb/tb_uart.v
+L0 3
+Z4 OV;L;10.5b;63
+r1
+!s85 0
+31
+Z5 !s108 1789459766.000000
+Z6 !s107 tb/tb_uart.v|../rtl/periph/uart.v|
+Z7 !s90 -work|work|../rtl/periph/uart.v|tb/tb_uart.v|
+!i113 1
+Z8 o-work work
+Z9 tCvgOpt 0
+vuart
+R1
+!i10b 1
+!s100 <Bh4Gn?W[9Af32R6n8Rb;2
+IH0XSH<`bf6?3]>lhJFeDR0
+R2
+R0
+R3
+8../rtl/periph/uart.v
+F../rtl/periph/uart.v
+L0 1
+R4
+r1
+!s85 0
+31
+R5
+R6
+R7
+!i113 1
+R8
+R9
