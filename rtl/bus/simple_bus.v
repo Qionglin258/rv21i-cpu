@@ -26,13 +26,13 @@ always @(*) begin
 
     case (mem_addr[15:12])
         4'b0000: begin //dmem
-            dmem_addr  = mem_addr[11:2];
+            dmem_addr  = mem_addr[11:2]; // memory address
             dmem_wdata = mem_wdata;
             dmem_we    = mem_we;
             mem_rdata  = dmem_rdata;
         end
         4'b0001: begin //uart
-            uart_addr  = mem_addr[3:0];
+            uart_addr  = mem_addr[3:0]; // register offset
             uart_wdata = mem_wdata;
             uart_we    = mem_we;
             mem_rdata  = uart_rdata;
