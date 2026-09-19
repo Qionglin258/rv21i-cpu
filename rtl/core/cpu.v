@@ -16,6 +16,7 @@ wire [31:0] next_pc; // decision is made in EX
 wire [31:0] pc_plus4;
 wire [31:0] if_pc_plus4;
 wire load_bubble;
+wire branch_flush;
 reg [31:0] mem_wb_alu_result;
 reg [31:0] mem_wb_mem_rdata;
 reg [4:0]  mem_wb_rd_addr;
@@ -45,7 +46,11 @@ always @(posedge clk or negedge arst_n) begin
     if (!arst_n) begin
         if_id_pc <= 32'd0;
         if_id_instr <= 32'd0;
-    end else if(!load_bubble) begin
+    end else if(branch_flush) begin
+        if_id_pc <= 32'd0;
+        if_id_instr <= 32'd0;
+    end
+    else if(!load_bubble) begin
         if_id_pc <= pc;
         if_id_instr <= instr;
     end
@@ -134,15 +139,25 @@ always @(posedge clk or negedge arst_n) begin
         id_ex_mem_re <= 1'b0;
         id_ex_branch_type <= 2'b00;
         id_ex_funct3 <= 3'b000;
-    end else if (load_bubble) begin
-        id_ex_mem_we <= 1'b0;
-        id_ex_reg_we <= 1'b0;
-        id_ex_branch_type <= 2'b00;
+    end else if (branch_flush || load_bubble) begin
+        id_ex_branch_type <= 2'b00; // top switch for branch_flush
+        id_ex_mem_re <= 1'b0; // top switch for load_bubble
+
+        id_ex_rs1 <= 32'd0;
+        id_ex_rs2 <= 32'd0;
+        id_ex_imm <= 32'd0;
+        id_ex_rs1_addr <= 5'd0;
+        id_ex_rs2_addr <= 5'd0;
+        id_ex_rd_addr <= 5'd0;
+        id_ex_pc <= 32'd0; // data to 0
+
+        id_ex_alu_src <= 1'b0;
         id_ex_alu_ctrl <= 4'd0;
         id_ex_wb_sel <= 2'd0;
         id_ex_load_byte <= 1'b0;
-        id_ex_mem_re <= 1'b0;
         id_ex_funct3 <= 3'b000;
+        id_ex_reg_we <= 1'b0;
+        id_ex_mem_we <= 1'b0; // control to 0
     end else begin
         id_ex_pc <= if_id_pc;
         id_ex_rs1 <= rs1_data;
@@ -187,6 +202,7 @@ assign ex_pc_plus4 = id_ex_pc + 32'd4;
 assign alu_b = id_ex_alu_src ? id_ex_imm : rs2_forwarded;
 assign pc_relative_target = id_ex_pc + id_ex_imm;
 assign jalr_target = {ex_alu_result[31:1], 1'b0};
+assign branch_flush = (ex_pc_sel != 2'b00);
 
 assign rs1_forwarded = 
     (ex_mem_reg_we && ex_mem_rd_addr != 5'd0 && ex_mem_rd_addr == id_ex_rs1_addr) ? ex_mem_alu_result :
@@ -226,6 +242,7 @@ always@(*) begin
     endcase
 end
 assign next_pc = 
+    load_bubble ? pc :
     (ex_pc_sel == 2'b01) ? pc_relative_target :
     (ex_pc_sel == 2'b10) ? jalr_target :
     if_pc_plus4;
@@ -237,6 +254,7 @@ always @(posedge clk or negedge arst_n) begin
         ex_mem_rs2 <= 32'd0;
         ex_mem_rd_addr <= 5'd0;
         ex_mem_mem_we <= 1'b0;
+        ex_mem_mem_re <= 1'b0;
         ex_mem_reg_we <= 1'b0;
         ex_mem_wb_sel <= 2'd0;
         ex_mem_load_byte <= 1'b0;
@@ -246,6 +264,7 @@ always @(posedge clk or negedge arst_n) begin
         ex_mem_rs2 <= rs2_forwarded;
         ex_mem_rd_addr <= id_ex_rd_addr;
         ex_mem_mem_we <= id_ex_mem_we;
+        ex_mem_mem_re <= id_ex_mem_re;
         ex_mem_reg_we <= id_ex_reg_we;
         ex_mem_wb_sel <= id_ex_wb_sel;
         ex_mem_load_byte <= id_ex_load_byte;
