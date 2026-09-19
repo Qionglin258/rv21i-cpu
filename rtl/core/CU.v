@@ -2,20 +2,18 @@ module CU (
     input [6:0] opcode,
     input [2:0] funct3,
     input [6:0] funct7,
-    input zero,
-    input [31:0] alu_result,
-    output reg [1:0] pc_sel,
+    output reg [1:0] branch_type, // 00:normal 01:B 10:JAL 11:JALR
     output reg [3:0] alu_ctrl,
     output reg alu_src,
     output reg [2:0] imm_type,
     output reg reg_we,
     output reg mem_we,
     output reg [1:0]wb_sel,
-    output reg load_byte
+    output reg load_byte,
+    output reg mem_re // for bubble
 );
 always@(*) begin
     // Default values
-    pc_sel = 2'b0;
     alu_ctrl = 4'b0000;
     alu_src = 1'b0;
     imm_type = 3'b000;
@@ -23,6 +21,8 @@ always@(*) begin
     mem_we = 1'b0;
     wb_sel = 2'b0;
     load_byte = 1'b0;
+    branch_type = 2'b00;
+    mem_re = 1'b0;
 
     case (opcode)
         7'b0110011: begin // R-type
@@ -72,7 +72,8 @@ always@(*) begin
             imm_type = 3'b001;
             alu_ctrl = 4'b0000;
             wb_sel = 2'b1;
-            load_byte = (funct3 == 3'b100);
+            load_byte = (funct3 == 3'b100); // lbu
+            mem_re = 1'b1;
         end
         7'b0100011: begin // Sw only
             alu_src = 1'b1;
@@ -83,31 +84,28 @@ always@(*) begin
         7'b1100011: begin // B-type
             imm_type = 3'b011; // Immediate type for B-type
             alu_ctrl = 4'b0001; // SUB for comparison
+            branch_type = 2'b01; // Indicate branch instruction
             case (funct3)
-                3'b000: pc_sel = zero ? 2'b01 : 2'b00; // BEQ
-                3'b001: pc_sel = zero ? 2'b00 : 2'b01; // BNE
+                3'b000: ; // BEQ
+                3'b001: ; // BNE
                 3'b100: begin
-                    alu_ctrl = 4'b0011; // SLT for BLT
-                    pc_sel = alu_result[0] ? 2'b01 : 2'b00; // Jump if less than
+                    alu_ctrl = 4'b0011; // SLT for BLT : jump if less than
                 end
                 3'b101: begin
-                    alu_ctrl = 4'b0011; // SLT for BGE
-                    pc_sel = alu_result[0] ? 2'b00 : 2'b01; // Jump if greater than or equal
+                    alu_ctrl = 4'b0011; // SLT for BGE : jump if greater than or equal
                 end
                 3'b110: begin
-                    alu_ctrl = 4'b0100; // SLTU for BLTU
-                    pc_sel = alu_result[0] ? 2'b01 : 2'b00; // Jump if less than unsigned
+                    alu_ctrl = 4'b0100; // SLTU for BLTU : jump if less than unsigned
                 end
                 3'b111: begin
-                    alu_ctrl = 4'b0100; // SLTU for BGEU
-                    pc_sel = alu_result[0] ? 2'b00 : 2'b01; // Jump if greater than or equal unsigned
+                    alu_ctrl = 4'b0100; // SLTU for BGEU : jump if greater than or equal unsigned
                 end
-                default: pc_sel = 2'b00; // Default to not taken
+                default: alu_ctrl = 4'b0001; // Default to SUB for comparison
             endcase
         end
         7'b1101111: begin // JAL
             reg_we = 1'b1;
-            pc_sel = 2'b1; // Jump always
+            branch_type = 2'b10; // Indicate JAL instruction
             imm_type = 3'b101; // Immediate type for J-type
             alu_ctrl = 4'b0000; // ADD for calculating return address
             wb_sel = 2'b10; // Write PC + 4 to register
@@ -115,14 +113,12 @@ always@(*) begin
         7'b1100111: begin // JALR
             reg_we = 1'b1;
             alu_src = 1'b1; // Use immediate for address calculation
-            pc_sel = 2'b10; // Jump always
+            branch_type = 2'b11; // Indicate JALR instruction
             imm_type = 3'b001; // Immediate type for I-type
             alu_ctrl = 4'b0000; // ADD for calculating return address
             wb_sel = 2'b10; // Write PC + 4 to register
         end
-        default: begin
-            // Handle other opcodes as needed
-        end
+        default: ;
     endcase
 end
 endmodule
