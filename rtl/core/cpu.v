@@ -205,12 +205,12 @@ assign jalr_target = {ex_alu_result[31:1], 1'b0};
 assign branch_flush = (ex_pc_sel != 2'b00);
 
 assign rs1_forwarded = 
-    (ex_mem_reg_we && ex_mem_rd_addr != 5'd0 && ex_mem_rd_addr == id_ex_rs1_addr) ? ex_mem_alu_result :
+    (ex_mem_reg_we && !ex_mem_mem_re && ex_mem_rd_addr != 5'd0 && ex_mem_rd_addr == id_ex_rs1_addr) ? ex_mem_alu_result : // if ex_mem_mem_re is 1, the data would be ready after the mem stage, so we cannot forward it here
     (mem_wb_reg_we && mem_wb_rd_addr != 5'd0 && mem_wb_rd_addr == id_ex_rs1_addr) ? reg_wdata :
     id_ex_rs1;
 
 assign rs2_forwarded = 
-    (ex_mem_reg_we && ex_mem_rd_addr != 5'd0 && ex_mem_rd_addr == id_ex_rs2_addr) ? ex_mem_alu_result :
+    (ex_mem_reg_we && !ex_mem_mem_re && ex_mem_rd_addr != 5'd0 && ex_mem_rd_addr == id_ex_rs2_addr) ? ex_mem_alu_result :
     (mem_wb_reg_we && mem_wb_rd_addr != 5'd0 && mem_wb_rd_addr == id_ex_rs2_addr) ? reg_wdata :
     id_ex_rs2;
 

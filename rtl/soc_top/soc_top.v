@@ -65,7 +65,7 @@ simple_bus u_simple_bus(
 dmem u_dmem(
     .clk(clk),
     .we(dmem_we),
-    .addr(dmem_addr),
+    .addr(dmem_addr), //mem_addr[11:2]
     .wdata(dmem_wdata),
     .rdata(dmem_rdata)
 );

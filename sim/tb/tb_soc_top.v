@@ -17,6 +17,9 @@ wire [31:0] debug_reg_wdata;
 
 integer failures;
 integer fetched_instructions;
+integer result_writes;
+reg result_write_seen;
+reg [31:0] result_value;
 
 assign gpio_io = gpio_drive_en ? gpio_drive_val : 8'hzz;
 
@@ -49,6 +52,12 @@ always @(posedge clk) begin
     if (arst_n && (debug_instr !== 32'bx)) begin
         fetched_instructions = fetched_instructions + 1;
     end
+
+    if (arst_n && uut.u_cpu.mem_we && (uut.u_cpu.mem_addr == 32'h00001FFC)) begin
+        result_writes = result_writes + 1;
+        result_write_seen = 1'b1;
+        result_value = uut.u_cpu.mem_wdata;
+    end
 end
 
 initial begin
@@ -59,26 +68,27 @@ initial begin
     gpio_drive_val = 8'd0;
     failures = 0;
     fetched_instructions = 0;
+    result_writes = 0;
+    result_write_seen = 1'b0;
+    result_value = 32'd0;
 
     #25;
     arst_n = 1'b1;
 
-    // Let the CPU execute the program loaded by imem.hex.
-    repeat (40) @(posedge clk);
+        // Let the CPU execute the test program loaded by imem.hex.
+        repeat (3000) @(posedge clk);
 
     check(fetched_instructions >= 10,
           "CPU fetched instructions from imem");
-    check(uut.u_gpio.dir_reg == 8'h0F,
-          "CPU wrote GPIO direction register");
-    check(uut.u_gpio.out_reg == 8'h01,
-          "CPU wrote GPIO output register");
-    check(gpio_io[3:0] == 4'b0001,
-          "GPIO output pins reflect CPU-written value");
-    check(gpio_io[7:4] === 4'bzzzz,
-          "GPIO input pins remain high impedance");
+        check(result_write_seen,
+            "CPU wrote the computed result to 0x00001FFC");
+        check(result_writes == 1,
+            "CPU wrote the result exactly once");
+        check(result_value == 32'd0,
+            "computed result is zero");
 
     if (failures == 0)
-        $display("PASS: CPU imem-to-GPIO testbench");
+          $display("PASS: CPU C program testbench, result = %0d", result_value);
     else
         $display("FAIL: %0d test(s) failed", failures);
 
