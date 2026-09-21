@@ -69,6 +69,7 @@ wire reg_we_id;
 wire [1:0] wb_sel_id;
 wire load_byte_id;
 wire mem_re_id;
+wire [1:0] alu_a_sel_id;
 
 regfile u_regfile(
     .clk(clk),
@@ -100,6 +101,7 @@ CU u_cu(
     .wb_sel(wb_sel_id),
     .load_byte(load_byte_id),
     .mem_re(mem_re_id),
+    .alu_a_sel(alu_a_sel_id),
     .branch_type(branch_type)
 );
 
@@ -118,6 +120,7 @@ reg        id_ex_reg_we;
 reg [1:0]  id_ex_wb_sel;
 reg        id_ex_mem_re;
 reg        id_ex_load_byte;
+reg [1:0]  id_ex_alu_a_sel;
 reg [1:0]  id_ex_branch_type;
 reg [2:0]  id_ex_funct3;
 
@@ -137,6 +140,7 @@ always @(posedge clk or negedge arst_n) begin
         id_ex_wb_sel <= 2'd0;
         id_ex_load_byte <= 1'b0;
         id_ex_mem_re <= 1'b0;
+        id_ex_alu_a_sel <= 2'b00;
         id_ex_branch_type <= 2'b00;
         id_ex_funct3 <= 3'b000;
     end else if (branch_flush || load_bubble) begin
@@ -155,6 +159,7 @@ always @(posedge clk or negedge arst_n) begin
         id_ex_alu_ctrl <= 4'd0;
         id_ex_wb_sel <= 2'd0;
         id_ex_load_byte <= 1'b0;
+        id_ex_alu_a_sel <= 2'b00;
         id_ex_funct3 <= 3'b000;
         id_ex_reg_we <= 1'b0;
         id_ex_mem_we <= 1'b0; // control to 0
@@ -173,12 +178,14 @@ always @(posedge clk or negedge arst_n) begin
         id_ex_wb_sel <= wb_sel_id;
         id_ex_load_byte <= load_byte_id;
         id_ex_mem_re <= mem_re_id;
+        id_ex_alu_a_sel <= alu_a_sel_id;
         id_ex_branch_type <= branch_type;
         id_ex_funct3 <= if_id_instr[14:12];
     end
 end
 
 // ===================== 3. Execution (jst kidding) :alu + assign next_pc =====================
+wire [31:0] alu_a;
 wire [31:0] alu_b;
 wire ex_zero;
 wire [31:0] ex_alu_result;
@@ -199,6 +206,9 @@ wire [31:0] rs1_forwarded;
 wire [31:0] rs2_forwarded;
 
 assign ex_pc_plus4 = id_ex_pc + 32'd4;
+assign alu_a = (id_ex_alu_a_sel == 2'b01) ? id_ex_pc :
+               (id_ex_alu_a_sel == 2'b10) ? 32'd0 :
+               rs1_forwarded;
 assign alu_b = id_ex_alu_src ? id_ex_imm : rs2_forwarded;
 assign pc_relative_target = id_ex_pc + id_ex_imm;
 assign jalr_target = {ex_alu_result[31:1], 1'b0};
@@ -215,7 +225,7 @@ assign rs2_forwarded =
     id_ex_rs2;
 
 alu u_alu(
-    .a(rs1_forwarded),
+    .a(alu_a),
     .b(alu_b),
     .alu_ctrl(id_ex_alu_ctrl),
     .result(ex_alu_result),

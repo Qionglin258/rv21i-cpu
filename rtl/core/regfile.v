@@ -13,8 +13,11 @@ reg [31:0] regs [31:0]; // 32 registers of 32 bits each
 integer i; //verilog way.Systemverilog allows 'for(int i...).
 
 // read
-assign rdata1 = (raddr1 == 5'd0) ? 32'd0 : regs[raddr1];
-assign rdata2 = (raddr2 == 5'd0) ? 32'd0 : regs[raddr2];
+assign rdata1 = (raddr1 == 5'd0) ? 32'd0 : // the last piece of forwarding
+                (we && (waddr == raddr1)) ? wdata : regs[raddr1];
+assign rdata2 = (raddr2 == 5'd0) ? 32'd0 :
+                (we && (waddr == raddr2)) ? wdata : regs[raddr2];
+
 //no need for arst_n, the negedge will do the job.
 // write and storage itself
 always @(posedge clk or negedge arst_n) begin

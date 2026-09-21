@@ -10,7 +10,8 @@ module CU (
     output reg mem_we,
     output reg [1:0]wb_sel,
     output reg load_byte,
-    output reg mem_re // for bubble
+    output reg mem_re, // for bubble
+    output reg [1:0] alu_a_sel
 );
 always@(*) begin
     // Default values
@@ -23,6 +24,7 @@ always@(*) begin
     load_byte = 1'b0;
     branch_type = 2'b00;
     mem_re = 1'b0;
+    alu_a_sel = 2'b00;
 
     case (opcode)
         7'b0110011: begin // R-type
@@ -61,6 +63,14 @@ always@(*) begin
             endcase
         end
         7'b0110111: begin // LUI
+            alu_a_sel = 2'b10;
+            alu_src = 1'b1;
+            reg_we = 1'b1;
+            imm_type = 3'b100;
+            alu_ctrl = 4'b0000;
+        end
+        7'b0010111: begin // AUIPC
+            alu_a_sel = 2'b01;
             alu_src = 1'b1;
             reg_we = 1'b1;
             imm_type = 3'b100;
