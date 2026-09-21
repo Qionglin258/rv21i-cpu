@@ -17,13 +17,15 @@ wire [31:0] pc_plus4;
 wire [31:0] if_pc_plus4;
 wire load_bubble;
 wire branch_flush;
+
+reg [2:0]  mem_wb_funct3;
 reg [31:0] mem_wb_alu_result;
 reg [31:0] mem_wb_mem_rdata;
 reg [4:0]  mem_wb_rd_addr;
 reg        mem_wb_reg_we;
 reg [1:0]  mem_wb_wb_sel;
-reg        mem_wb_load_byte;
 reg [31:0] mem_wb_pc_plus4; // have to declare them right now here
+
 assign if_pc_plus4 = pc + 32'd4; // for next_pc
 
 pc u_pc(
@@ -67,7 +69,6 @@ wire [1:0] branch_type;
 wire mem_we_id;
 wire reg_we_id;
 wire [1:0] wb_sel_id;
-wire load_byte_id;
 wire mem_re_id;
 wire [1:0] alu_a_sel_id;
 
@@ -99,7 +100,6 @@ CU u_cu(
     .mem_we(mem_we_id),
     .reg_we(reg_we_id),
     .wb_sel(wb_sel_id),
-    .load_byte(load_byte_id),
     .mem_re(mem_re_id),
     .alu_a_sel(alu_a_sel_id),
     .branch_type(branch_type)
@@ -119,7 +119,6 @@ reg        id_ex_mem_we;
 reg        id_ex_reg_we;
 reg [1:0]  id_ex_wb_sel;
 reg        id_ex_mem_re;
-reg        id_ex_load_byte;
 reg [1:0]  id_ex_alu_a_sel;
 reg [1:0]  id_ex_branch_type;
 reg [2:0]  id_ex_funct3;
@@ -138,7 +137,6 @@ always @(posedge clk or negedge arst_n) begin
         id_ex_mem_we <= 1'b0;
         id_ex_reg_we <= 1'b0;
         id_ex_wb_sel <= 2'd0;
-        id_ex_load_byte <= 1'b0;
         id_ex_mem_re <= 1'b0;
         id_ex_alu_a_sel <= 2'b00;
         id_ex_branch_type <= 2'b00;
@@ -158,7 +156,6 @@ always @(posedge clk or negedge arst_n) begin
         id_ex_alu_src <= 1'b0;
         id_ex_alu_ctrl <= 4'd0;
         id_ex_wb_sel <= 2'd0;
-        id_ex_load_byte <= 1'b0;
         id_ex_alu_a_sel <= 2'b00;
         id_ex_funct3 <= 3'b000;
         id_ex_reg_we <= 1'b0;
@@ -176,7 +173,6 @@ always @(posedge clk or negedge arst_n) begin
         id_ex_mem_we <= mem_we_id;
         id_ex_reg_we <= reg_we_id;
         id_ex_wb_sel <= wb_sel_id;
-        id_ex_load_byte <= load_byte_id;
         id_ex_mem_re <= mem_re_id;
         id_ex_alu_a_sel <= alu_a_sel_id;
         id_ex_branch_type <= branch_type;
@@ -199,7 +195,7 @@ reg [4:0]  ex_mem_rd_addr;
 reg        ex_mem_mem_we;
 reg        ex_mem_reg_we;
 reg [1:0]  ex_mem_wb_sel;
-reg        ex_mem_load_byte;
+reg [2:0]  ex_mem_funct3;
 reg [31:0] ex_mem_pc_plus4;
 reg        ex_mem_mem_re;
 wire [31:0] rs1_forwarded;
@@ -267,8 +263,8 @@ always @(posedge clk or negedge arst_n) begin
         ex_mem_mem_re <= 1'b0;
         ex_mem_reg_we <= 1'b0;
         ex_mem_wb_sel <= 2'd0;
-        ex_mem_load_byte <= 1'b0;
         ex_mem_pc_plus4 <= 32'd0;
+        ex_mem_funct3 <= 3'b000;
     end else begin
         ex_mem_alu_result <= ex_alu_result;
         ex_mem_rs2 <= rs2_forwarded;
@@ -277,8 +273,8 @@ always @(posedge clk or negedge arst_n) begin
         ex_mem_mem_re <= id_ex_mem_re;
         ex_mem_reg_we <= id_ex_reg_we;
         ex_mem_wb_sel <= id_ex_wb_sel;
-        ex_mem_load_byte <= id_ex_load_byte;
         ex_mem_pc_plus4 <= ex_pc_plus4;
+        ex_mem_funct3 <= id_ex_funct3;
     end
 end
 
@@ -300,16 +296,16 @@ always @(posedge clk or negedge arst_n) begin
         mem_wb_rd_addr <= 5'd0;
         mem_wb_reg_we <= 1'b0;
         mem_wb_wb_sel <= 2'd0;
-        mem_wb_load_byte <= 1'b0;
         mem_wb_pc_plus4 <= 32'd0;
+        mem_wb_funct3 <= 3'b000;
     end else begin
         mem_wb_alu_result <= ex_mem_alu_result;
         mem_wb_mem_rdata <= mem_rdata;
         mem_wb_rd_addr <= ex_mem_rd_addr;
         mem_wb_reg_we <= ex_mem_reg_we;
         mem_wb_wb_sel <= ex_mem_wb_sel;
-        mem_wb_load_byte <= ex_mem_load_byte;
         mem_wb_pc_plus4 <= ex_mem_pc_plus4;
+        mem_wb_funct3 <= ex_mem_funct3;
     end
 end
 
@@ -319,7 +315,7 @@ always @(*) begin
     case (mem_wb_wb_sel)
         2'b00: reg_wdata = mem_wb_alu_result;
         2'b01: begin
-            if (mem_wb_load_byte) begin // read 4 bytes -> read 1 byte
+            if (mem_wb_funct3 == 3'b100) begin // read 4 bytes -> read 1 byte
                 case (mem_wb_alu_result[1:0])
                     2'b00: reg_wdata = {24'd0, mem_wb_mem_rdata[7:0]};
                     2'b01: reg_wdata = {24'd0, mem_wb_mem_rdata[15:8]};

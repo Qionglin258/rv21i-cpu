@@ -9,7 +9,6 @@ module CU (
     output reg reg_we,
     output reg mem_we,
     output reg [1:0]wb_sel,
-    output reg load_byte,
     output reg mem_re, // for bubble
     output reg [1:0] alu_a_sel
 );
@@ -21,7 +20,6 @@ always@(*) begin
     reg_we = 1'b0;
     mem_we = 1'b0;
     wb_sel = 2'b0;
-    load_byte = 1'b0;
     branch_type = 2'b00;
     mem_re = 1'b0;
     alu_a_sel = 2'b00;
@@ -82,16 +80,15 @@ always@(*) begin
             imm_type = 3'b001;
             alu_ctrl = 4'b0000;
             wb_sel = 2'b1;
-            load_byte = (funct3 == 3'b100); // lbu
             mem_re = 1'b1;
         end
-        7'b0100011: begin // Sw only
+        7'b0100011: begin // Store:sw,sb,sh share the same ctrl signals
             alu_src = 1'b1;
             mem_we = 1'b1;
             imm_type = 3'b010; // Immediate type for S-type
             alu_ctrl = 4'b0000; // ADD for address calculation
         end
-        7'b1100011: begin // B-type
+        7'b1100011: begin // B-type,funct3 will be read directly in EX
             imm_type = 3'b011; // Immediate type for B-type
             alu_ctrl = 4'b0001; // SUB for comparison
             branch_type = 2'b01; // Indicate branch instruction
