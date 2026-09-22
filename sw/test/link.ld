@@ -15,11 +15,11 @@ SECTIONS
         *(.text.*)
         *(.rodata)
         . = ALIGN(4);
-        _data_load_addr = .;  /* data初始值的加载地址：存在IMEM，紧跟代码后 */
+        _data_load_offset = .;  /* data初始值在IMEM里的物理偏移，紧跟代码后 */
     } > IMEM
 
-    /* 数据段：运行地址在DMEM，初始值存在IMEM */
-    .data : AT(_data_load_addr)
+    /* 数据段：运行地址(VMA)在DMEM，加载地址(LMA)为IMEM物理偏移（烧录位置） */
+    .data : AT(_data_load_offset)
     {
         . = ALIGN(4);
         _data_start = .;
@@ -43,4 +43,9 @@ SECTIONS
 
     /* 栈顶：DMEM最末尾，向下增长 */
     _stack_top = ORIGIN(DMEM) + LENGTH(DMEM);
+
+    /* data初值的“数据总线可读”地址 = IMEM物理偏移 + 回读窗口基址0x8000。
+       CPU内部把 0x8000~0x8FFF 旁路到 imem 的只读数据口，start.s 经此窗口拷贝，
+       拷贝到DMEM后，程序仍按低地址(DMEM)访问变量。 */
+    _data_load_addr = 0x8000 + _data_load_offset;
 }

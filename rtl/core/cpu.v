@@ -5,6 +5,7 @@ module cpu(
     output [31:0] mem_addr,
     output [31:0] mem_wdata,
     output mem_we,
+    output [3:0] mem_byte_en,
     output [31:0] pc,
     output [31:0] instr,
     output [31:0] alu_result,
@@ -15,6 +16,7 @@ module cpu(
 wire [31:0] next_pc; // decision is made in EX
 wire [31:0] pc_plus4;
 wire [31:0] if_pc_plus4;
+wire [31:0] imem_drdata;
 wire load_bubble;
 wire branch_flush;
 
@@ -37,7 +39,9 @@ pc u_pc(
 
 imem u_imem(
     .addr(pc[11:0]),
-    .rdata(instr)
+    .rdata(instr),
+    .daddr(mem_addr[11:0]),
+    .drdata(imem_drdata)
 );
 
 // ---------- IF/ID pipeline registers ----------
@@ -286,8 +290,21 @@ assign load_bubble =
 
 // ===================== 4. memory access : -> bus =====================
 assign mem_addr = ex_mem_alu_result;
-assign mem_wdata = ex_mem_rs2;
 assign mem_we = ex_mem_mem_we;
+
+// .data init read-back window: 0x8000-0x8FFF -> imem physical 0-0xFFF (read-only)
+wire        imem_dsel     = (mem_addr[15:12] == 4'b1000);
+wire [31:0] mem_rdata_eff = imem_dsel ? imem_drdata : mem_rdata;
+
+assign mem_wdata =
+    (ex_mem_mem_we && (ex_mem_funct3[1:0] == 2'b00)) ? // for store,mem_we=1,for funct3[1:0],sb=00,sw=10
+        ({24'b0, ex_mem_rs2[7:0]} << {ex_mem_alu_result[1:0], 3'b000}) : // result[1:0] decides which byte can be changed.{ex_mem_alu_result[1:0], 3'b000}=8*result[1:0]
+        ex_mem_rs2;
+
+assign mem_byte_en =
+    (~ex_mem_mem_we)              ? 4'b0000 :
+    (ex_mem_funct3[1:0] == 2'b00) ? (4'b0001 << ex_mem_alu_result[1:0]) :
+                                     4'b1111;
 
 always @(posedge clk or negedge arst_n) begin
     if (!arst_n) begin
@@ -300,7 +317,7 @@ always @(posedge clk or negedge arst_n) begin
         mem_wb_funct3 <= 3'b000;
     end else begin
         mem_wb_alu_result <= ex_mem_alu_result;
-        mem_wb_mem_rdata <= mem_rdata;
+        mem_wb_mem_rdata <= mem_rdata_eff;
         mem_wb_rd_addr <= ex_mem_rd_addr;
         mem_wb_reg_we <= ex_mem_reg_we;
         mem_wb_wb_sel <= ex_mem_wb_sel;
@@ -315,16 +332,21 @@ always @(*) begin
     case (mem_wb_wb_sel)
         2'b00: reg_wdata = mem_wb_alu_result;
         2'b01: begin
-            if (mem_wb_funct3 == 3'b100) begin // read 4 bytes -> read 1 byte
-                case (mem_wb_alu_result[1:0])
-                    2'b00: reg_wdata = {24'd0, mem_wb_mem_rdata[7:0]};
-                    2'b01: reg_wdata = {24'd0, mem_wb_mem_rdata[15:8]};
-                    2'b10: reg_wdata = {24'd0, mem_wb_mem_rdata[23:16]};
-                    default: reg_wdata = {24'd0, mem_wb_mem_rdata[31:24]};
-                endcase
-            end else begin
-                reg_wdata = mem_wb_mem_rdata;
-            end
+            case (mem_wb_funct3)
+                3'b000, 3'b100: begin // lb / lbu -> load 1 byte
+                    case (mem_wb_alu_result[1:0]) // funct[2] decides whether it's signed or unsigned
+                        2'b00: reg_wdata = mem_wb_funct3[2] ? {24'b0, mem_wb_mem_rdata[7:0]}
+                                                    : {{24{mem_wb_mem_rdata[7]}},  mem_wb_mem_rdata[7:0]};
+                        2'b01: reg_wdata = mem_wb_funct3[2] ? {24'b0, mem_wb_mem_rdata[15:8]}
+                                                    : {{24{mem_wb_mem_rdata[15]}}, mem_wb_mem_rdata[15:8]};
+                        2'b10: reg_wdata = mem_wb_funct3[2] ? {24'b0, mem_wb_mem_rdata[23:16]}
+                                                    : {{24{mem_wb_mem_rdata[23]}}, mem_wb_mem_rdata[23:16]};
+                        default:reg_wdata = mem_wb_funct3[2] ? {24'b0, mem_wb_mem_rdata[31:24]}
+                                                    : {{24{mem_wb_mem_rdata[31]}}, mem_wb_mem_rdata[31:24]};
+                    endcase
+                end
+                default: reg_wdata = mem_wb_mem_rdata; // lw -> load 4 bytes；'half' dies here.
+            endcase
         end
         2'b10: reg_wdata = mem_wb_pc_plus4;
         default: reg_wdata = 32'd0;

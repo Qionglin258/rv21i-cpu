@@ -2,11 +2,13 @@ module simple_bus(
     input  [31:0] mem_addr, //[15:12] select device, [11:2] select register,[3:0] select register offset
     input  [31:0] mem_wdata,
     input         mem_we,
+    input  [3:0]  mem_byte_en,
     output reg  [31:0] mem_rdata,
 
     output reg  [9:0]  dmem_addr,
     output reg  [31:0] dmem_wdata,
     output reg         dmem_we,
+    output reg  [3:0]  dmem_byte_en,
     input  [31:0] dmem_rdata,
 
     output reg  [3:0]  uart_addr,
@@ -24,6 +26,7 @@ always @(*) begin
     dmem_addr  = 10'd0;
     dmem_wdata = 32'd0;
     dmem_we    = 1'b0;
+    dmem_byte_en = 4'b0000;
     uart_addr  = 4'd0;
     uart_wdata = 32'd0;
     uart_we    = 1'b0;
@@ -37,6 +40,7 @@ always @(*) begin
             dmem_addr  = mem_addr[11:2]; // memory address
             dmem_wdata = mem_wdata;
             dmem_we    = mem_we;
+            dmem_byte_en = mem_byte_en;
             mem_rdata  = dmem_rdata;
         end
         4'b0001: begin //uart

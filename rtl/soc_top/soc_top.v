@@ -13,11 +13,13 @@ module soc_top(
 wire [31:0] mem_addr;
 wire [31:0] mem_wdata;
 wire        mem_we;
+wire [3:0]  mem_byte_en;
 wire [31:0] mem_rdata;
 
 wire [9:0]  dmem_addr;
 wire [31:0] dmem_wdata;
 wire        dmem_we;
+wire [3:0]  dmem_byte_en;
 wire [31:0] dmem_rdata;
 
 wire [3:0]  uart_addr;
@@ -36,6 +38,7 @@ cpu u_cpu(
     .mem_addr(mem_addr),
     .mem_wdata(mem_wdata),
     .mem_we(mem_we),
+    .mem_byte_en(mem_byte_en),
     .mem_rdata(mem_rdata),
     .pc(pc),
     .instr(instr),
@@ -47,10 +50,12 @@ simple_bus u_simple_bus(
     .mem_addr(mem_addr),
     .mem_wdata(mem_wdata),
     .mem_we(mem_we),
+    .mem_byte_en(mem_byte_en),
     .mem_rdata(mem_rdata),
     .dmem_addr(dmem_addr),
     .dmem_wdata(dmem_wdata),
     .dmem_we(dmem_we),
+    .dmem_byte_en(dmem_byte_en),
     .dmem_rdata(dmem_rdata),
     .uart_addr(uart_addr),
     .uart_wdata(uart_wdata),
@@ -65,6 +70,7 @@ simple_bus u_simple_bus(
 dmem u_dmem(
     .clk(clk),
     .we(dmem_we),
+    .byte_en(dmem_byte_en),
     .addr(dmem_addr), //mem_addr[11:2]
     .wdata(dmem_wdata),
     .rdata(dmem_rdata)
