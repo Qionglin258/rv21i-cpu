@@ -7,7 +7,7 @@ module soc_top(
     output [31:0] reg_wdata,
     output        uart_tx,
     input         uart_rx,
-    inout  [7:0]  gpio_io
+    inout  [15:0] gpio_io
 );
 
 wire [31:0] mem_addr;

@@ -27,7 +27,7 @@ module tb_soc_top;
     reg        arst_n;
     reg        uart_rx;
     wire       uart_tx;
-    wire [7:0] gpio_io;
+    wire [15:0] gpio_io;
     reg        gpio_drive_en;
     reg [7:0]  gpio_drive_val;
 
@@ -58,7 +58,7 @@ module tb_soc_top;
     integer      uart_n;
     integer      uart_sum;
 
-    assign gpio_io = gpio_drive_en ? gpio_drive_val : 8'hzz;
+    assign gpio_io = gpio_drive_en ? {{8{1'bz}}, gpio_drive_val} : 16'hzzzz;
 
     soc_top uut (
         .clk        (clk),
@@ -167,7 +167,7 @@ module tb_soc_top;
                 $display("         [%0d] 0x%02h", ui, uart_mem[ui]);
         end
 
-        $display(" GPIO    gpio_io = 0x%02h %b", gpio_io, gpio_io);
+        $display(" GPIO    gpio_io = 0x%02h %b (low byte)", gpio_io[7:0], gpio_io[7:0]);
         $display("==================================================");
 
         // ---------------- checks ----------------
@@ -182,7 +182,7 @@ module tb_soc_top;
         end
 
         if (gpio_check_en) begin
-            check(gpio_io === gpio_exp,     "GPIO output matches GPIO_EXP");
+            check(gpio_io[7:0] === gpio_exp, "GPIO output matches GPIO_EXP (low byte)");
         end
 
         if (failures == 0)
