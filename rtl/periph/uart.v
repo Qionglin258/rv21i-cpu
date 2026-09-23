@@ -1,4 +1,7 @@
-module uart(
+module uart #(
+    parameter integer CLK_FREQ  = 100000000, // clock driving the UART (sim: 100 MHz)
+    parameter integer BAUD_RATE = 115200     // standard 115200 8N1 in sim and on board
+)(
     input         clk,
     input         arst_n,
     input  [3:0]  addr,
@@ -8,9 +11,7 @@ module uart(
     output        uart_tx,
     input         uart_rx
 );
-localparam CLK_FREQ    = 100000000;  // 100 MHz
-localparam BAUD_RATE   = 10000000;   // 10 Mbps for simulation
-localparam DIVISOR     = CLK_FREQ / BAUD_RATE;
+localparam DIVISOR      = CLK_FREQ / BAUD_RATE;
 localparam HALF_DIVISOR = (DIVISOR > 1) ? DIVISOR / 2 : 1;
 
 // register map

@@ -1,4 +1,7 @@
-module soc_top(
+module soc_top #(
+    parameter integer UART_CLK_FREQ = 100000000, // UART clock (sim: 100 MHz)
+    parameter integer UART_BAUD     = 115200     // standard 115200 8N1 in sim and on board
+)(
     input         clk,
     input         arst_n,
     output [31:0] pc,
@@ -77,7 +80,10 @@ dmem u_dmem(
     .rdata(dmem_rdata)
 );
 
-uart u_uart(
+uart #(
+    .CLK_FREQ(UART_CLK_FREQ),
+    .BAUD_RATE(UART_BAUD)
+) u_uart(
     .clk(clk),
     .arst_n(arst_n),
     .addr(uart_addr),

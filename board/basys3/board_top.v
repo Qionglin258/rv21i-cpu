@@ -24,10 +24,12 @@
 // This wrapper is board-only; it is NOT compiled into the ModelSim testbench.
 
 module board_top (
-    input  wire       clk,    // W5, 100 MHz oscillator
-    input  wire [7:0] sw,     // SW0..SW7  -> gpio_in[7:0]
-    input  wire       rst_sw, // SW15 (R2), slide UP/ON = manual reset
-    output reg  [7:0] led     // LD0..LD7
+    input  wire       clk,     // W5, 100 MHz oscillator
+    input  wire [7:0] sw,      // SW0..SW7  -> gpio_in[7:0]
+    input  wire       rst_sw,  // SW15 (R2), slide UP/ON = manual reset
+    output reg  [7:0] led,     // LD0..LD7
+    output wire       uart_tx, // A18 -> FTDI RXD (FPGA transmits to the PC)
+    input  wire       uart_rx  // B18 <- FTDI TXD (FPGA receives from the PC)
 );
 
     // ---- free-running divider: 100 MHz -> 6.25 MHz CPU clock (no reset) ----
@@ -71,7 +73,6 @@ module board_top (
 
     // observation ports (unused on the board for now; kept for the 7-seg stage)
     wire [31:0] pc, instr, alu_result, reg_wdata;
-    wire        uart_tx;
 
     wire [15:0] gpio_in;
     wire [15:0] gpio_out;
@@ -84,7 +85,10 @@ module board_top (
         led[3:0] = gpio_out[11:8];        // popcount (high byte, low nibble)
     end
 
-    soc_top u_soc (
+    soc_top #(
+        .UART_CLK_FREQ(6250000),   // UART runs on the 6.25 MHz CPU clock
+        .UART_BAUD    (115200)     // 115200 8N1 to the on-board FTDI USB-UART
+    ) u_soc (
         .clk        (cpu_clk),
         .arst_n     (arst_n),
         .pc         (pc),
@@ -92,7 +96,7 @@ module board_top (
         .alu_result (alu_result),
         .reg_wdata  (reg_wdata),
         .uart_tx    (uart_tx),
-        .uart_rx    (1'b1),        // UART unused: hold RX idle
+        .uart_rx    (uart_rx),
         .gpio_in    (gpio_in),
         .gpio_out   (gpio_out)
     );

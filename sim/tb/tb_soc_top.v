@@ -19,8 +19,10 @@
 //============================================================================
 module tb_soc_top;
 
-    // UART: 100MHz / 10Mbps -> 1 bit = 10 clk = 100 ns, 8N1, LSB first
-    localparam integer BIT_NS   = 100;
+    // UART: 100MHz / 115200 -> DIV = 868, 1 bit = 868 clk = 8680 ns, 8N1, LSB first.
+    // BIT_NS matches the RTL's integer divisor exactly so the monitor samples
+    // the same (slightly off-nominal) baud rate the DUT produces.
+    localparam integer BIT_NS   = 8680;
     localparam integer BIT_HALF = BIT_NS / 2;
 
     reg        clk;
