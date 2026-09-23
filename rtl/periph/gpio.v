@@ -5,29 +5,27 @@ module gpio (
     input   [31:0]  wdata,
     input           we,
     output  reg [31:0] rdata,
-    inout   [15:0]  gpio_io
+    input   [15:0]  gpio_in,   // board-level inputs (switches), sampled through 2 FFs
+    output  [15:0]  gpio_out   // board-level outputs (LEDs), per-bit enabled by dir_reg
 );
 
 reg [15:0] dir_reg;
 reg [15:0] out_reg;
 reg [15:0] sync1, sync2;
 
+// Synchronize asynchronous board inputs into the clock domain.
 always @(posedge clk or negedge arst_n) begin
     if(!arst_n) begin
         sync1 <= 16'd0;
         sync2 <= 16'd0;
     end else begin
-        sync1 <= gpio_io;
+        sync1 <= gpio_in;
         sync2 <= sync1;
     end
 end
 
-genvar pin;
-generate
-    for (pin = 0; pin < 16; pin = pin + 1) begin
-        assign gpio_io[pin] = dir_reg[pin] ? out_reg[pin] : 1'bz; // only way:& cause 1'b0
-    end
-endgenerate
+// dir_reg=1 drives out_reg on that pin; dir_reg=0 keeps the (unconnected) pin at 0.
+assign gpio_out = dir_reg & out_reg;
 
 always @(posedge clk or negedge arst_n) begin
     if(!arst_n) begin

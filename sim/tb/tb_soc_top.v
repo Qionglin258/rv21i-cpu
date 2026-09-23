@@ -27,9 +27,8 @@ module tb_soc_top;
     reg        arst_n;
     reg        uart_rx;
     wire       uart_tx;
-    wire [15:0] gpio_io;
-    reg        gpio_drive_en;
-    reg [7:0]  gpio_drive_val;
+    wire [15:0] gpio_out;  // DUT -> LEDs
+    reg  [15:0] gpio_in;   // testbench -> DUT (models the switches)
 
     wire [31:0] debug_pc;
     wire [31:0] debug_instr;
@@ -58,7 +57,7 @@ module tb_soc_top;
     integer      uart_n;
     integer      uart_sum;
 
-    assign gpio_io = gpio_drive_en ? {{8{1'bz}}, gpio_drive_val} : 16'hzzzz;
+    // gpio_in is driven directly by the testbench (like board switches); defaults to 0.
 
     soc_top uut (
         .clk        (clk),
@@ -69,7 +68,8 @@ module tb_soc_top;
         .reg_wdata  (debug_reg_wdata),
         .uart_tx    (uart_tx),
         .uart_rx    (uart_rx),
-        .gpio_io    (gpio_io)
+        .gpio_in    (gpio_in),
+        .gpio_out   (gpio_out)
     );
 
     always #5 clk = ~clk;
@@ -139,8 +139,7 @@ module tb_soc_top;
         clk            = 1'b0;
         arst_n         = 1'b0;
         uart_rx        = 1'b1;
-        gpio_drive_en  = 1'b0;
-        gpio_drive_val = 8'd0;
+        gpio_in        = 16'd0;
 
         failures             = 0;
         fetched_instructions = 0;
@@ -167,7 +166,7 @@ module tb_soc_top;
                 $display("         [%0d] 0x%02h", ui, uart_mem[ui]);
         end
 
-        $display(" GPIO    gpio_io = 0x%02h %b (low byte)", gpio_io[7:0], gpio_io[7:0]);
+        $display(" GPIO    gpio_out low byte = 0x%02h %b", gpio_out[7:0], gpio_out[7:0]);
         $display("==================================================");
 
         // ---------------- checks ----------------
@@ -182,7 +181,7 @@ module tb_soc_top;
         end
 
         if (gpio_check_en) begin
-            check(gpio_io[7:0] === gpio_exp, "GPIO output matches GPIO_EXP (low byte)");
+            check(gpio_out[7:0] === gpio_exp, "GPIO output matches GPIO_EXP (low byte)");
         end
 
         if (failures == 0)

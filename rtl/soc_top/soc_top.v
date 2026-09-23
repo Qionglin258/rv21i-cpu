@@ -7,7 +7,8 @@ module soc_top(
     output [31:0] reg_wdata,
     output        uart_tx,
     input         uart_rx,
-    inout  [15:0] gpio_io
+    input  [15:0] gpio_in,
+    output [15:0] gpio_out
 );
 
 wire [31:0] mem_addr;
@@ -94,7 +95,8 @@ gpio u_gpio(
     .wdata(gpio_wdata),
     .we(gpio_we),
     .rdata(gpio_rdata),
-    .gpio_io(gpio_io)
+    .gpio_in(gpio_in),
+    .gpio_out(gpio_out)
 );
 
 endmodule
