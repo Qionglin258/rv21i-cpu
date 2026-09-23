@@ -48,6 +48,7 @@ module tb_soc_top;
     integer      uart_sum_exp;
     reg          gpio_check_en;
     reg [7:0]    gpio_exp;
+    reg [7:0]    sw_in;      // +SW=<hex>: drive gpio_in low byte like the board switches
 
     // ---- UART monitor storage ----
     integer      ui;
@@ -127,6 +128,7 @@ module tb_soc_top;
         uart_sum_exp  = 0;
         gpio_check_en = 1'b0;
         gpio_exp      = 8'h00;
+        sw_in         = 8'h00;
 
         if ($value$plusargs("CYCLES=%d",   cycles))       ;
         if ($value$plusargs("EXPECTED=%d", expected))     ;
@@ -134,12 +136,13 @@ module tb_soc_top;
         if ($value$plusargs("UART_SUM=%d", uart_sum_exp)) ;
         if ($value$plusargs("GPIO_EXP=%h",  gpio_exp))    gpio_check_en = 1'b1;
         if ($value$plusargs("GPIO_CHECK=%d", ui))         gpio_check_en = ui[0];
+        if ($value$plusargs("SW=%h",        sw_in))       ;
 
         // ---- DUT init ----
         clk            = 1'b0;
         arst_n         = 1'b0;
         uart_rx        = 1'b1;
-        gpio_in        = 16'd0;
+        gpio_in        = {8'd0, sw_in};
 
         failures             = 0;
         fetched_instructions = 0;
@@ -166,7 +169,7 @@ module tb_soc_top;
                 $display("         [%0d] 0x%02h", ui, uart_mem[ui]);
         end
 
-        $display(" GPIO    gpio_out low byte = 0x%02h %b", gpio_out[7:0], gpio_out[7:0]);
+        $display(" GPIO    in=0x%02h  out_hi=0x%02h (%0d)  out_lo=0x%02h", gpio_in[7:0], gpio_out[15:8], gpio_out[15:8], gpio_out[7:0]);
         $display("==================================================");
 
         // ---------------- checks ----------------
