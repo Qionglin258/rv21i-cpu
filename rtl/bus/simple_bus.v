@@ -14,6 +14,7 @@ module simple_bus(
     output reg  [3:0]  uart_addr,
     output reg  [31:0] uart_wdata,
     output reg         uart_we,
+    output reg         uart_re,   // UART selected this cycle and not writing = read
     input  [31:0] uart_rdata,
 
     output reg [3:0]  gpio_addr,
@@ -30,6 +31,7 @@ always @(*) begin
     uart_addr  = 4'd0;
     uart_wdata = 32'd0;
     uart_we    = 1'b0;
+    uart_re    = 1'b0;
     gpio_addr  = 4'd0;
     gpio_wdata = 32'd0;
     gpio_we    = 1'b0;
@@ -47,6 +49,7 @@ always @(*) begin
             uart_addr  = mem_addr[3:0]; // register offset
             uart_wdata = mem_wdata;
             uart_we    = mem_we;
+            uart_re    = ~mem_we;      // selected and not writing => read strobe
             mem_rdata  = uart_rdata;
         end
         4'b0010: begin //gpio

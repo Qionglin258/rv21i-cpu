@@ -11,6 +11,7 @@
 //   +UART_SUM=<dec> 期望收到全部字节的算术和（配合 +UART_LEN 锁定内容）
 //   +GPIO_CHECK=1   给出该参数则在结束时校验 GPIO 输出
 //   +GPIO_EXP=<hex> 期望的 8 位 GPIO 输出（十六进制），如 +GPIO_EXP=5a
+//   +RX_TEST=1      向 DUT 的 uart_rx 注入 A5 5A 'O' 'K'，验证 echo 固件原样回发
 //
 // 例：
 //   vsim -c tb_soc_top -g/... +EXPECTED=17 +CYCLES=3000 -do "run -all; quit -f"
@@ -51,6 +52,7 @@ module tb_soc_top;
     reg          gpio_check_en;
     reg [7:0]    gpio_exp;
     reg [7:0]    sw_in;      // +SW=<hex>: drive gpio_in low byte like the board switches
+    integer      rx_test_en; // +RX_TEST=1: inject an RX frame sequence to test echo
 
     // ---- UART monitor storage ----
     integer      ui;
@@ -88,6 +90,23 @@ module tb_soc_top;
         end
     endtask
 
+    // Drive one 8N1 frame into the DUT's uart_rx (LSB first), at the same
+    // BIT_NS the DUT uses, so its half-bit aligned receiver samples correctly.
+    task send_rx_byte;
+        input [7:0] b;
+        integer k;
+        begin
+            uart_rx = 1'b0;              // start bit
+            #(BIT_NS);
+            for (k = 0; k < 8; k = k + 1) begin
+                uart_rx = b[k];          // data bits, LSB first
+                #(BIT_NS);
+            end
+            uart_rx = 1'b1;              // stop bit
+            #(BIT_NS);
+        end
+    endtask
+
     // Count fetched instructions and the single result write to 0x1FFC.
     always @(posedge clk) begin
         if (arst_n && (debug_instr !== 32'bx)) begin
@@ -122,6 +141,25 @@ module tb_soc_top;
         end
     end
 
+    // ---------------- optional RX stimulus (echo self-test) ----------------
+    // This is the only process that drives uart_rx, so the line idles high
+    // when the test is off. With +RX_TEST=1 it waits for reset release and the
+    // 8-byte banner, then sends A5 5A 'O' 'K' with a gap wider than one TX
+    // frame (the UART has a single-byte RX buffer). The echo firmware returns
+    // each byte, so the TX monitor captures banner(8) + echo(4) = 12 bytes.
+    initial begin
+        uart_rx = 1'b1;                 // idle line
+        rx_test_en = 0;
+        if ($value$plusargs("RX_TEST=%d", rx_test_en)) ;
+        if (rx_test_en) begin
+            #1000000;
+            send_rx_byte(8'hA5); #(100000);
+            send_rx_byte(8'h5A); #(100000);
+            send_rx_byte(8'h4F); #(100000); // 'O'
+            send_rx_byte(8'h4B); #(100000); // 'K'
+        end
+    end
+
     initial begin
         // ---- defaults, then override from plusargs ----
         cycles        = 3000;
@@ -143,7 +181,6 @@ module tb_soc_top;
         // ---- DUT init ----
         clk            = 1'b0;
         arst_n         = 1'b0;
-        uart_rx        = 1'b1;
         gpio_in        = {8'd0, sw_in};
 
         failures             = 0;

@@ -7,6 +7,7 @@ module uart #(
     input  [3:0]  addr,
     input  [31:0] wdata, // come from cpu,send right away
     input         we,
+    input         re,    // read strobe: bus selected the UART and is not writing
     output reg [31:0] rdata, //->soc->bus->cpu->extended to reg_wdata
     output        uart_tx,
     input         uart_rx
@@ -139,8 +140,9 @@ always @(posedge clk or negedge arst_n) begin
             rx_baud_cnt <= rx_baud_cnt + 16'd1;
         end
         
-        // anothor if,no else
-        if (!we && addr == REG_DATA && rx_ready) begin
+        // Reading DATA clears rx_ready, gated by the bus read strobe so an
+        // unselected cycle (where the bus drives addr=0, we=0) cannot clear it.
+        if (re && (addr == REG_DATA) && rx_ready) begin
             rx_ready <= 1'b0;
         end
     end

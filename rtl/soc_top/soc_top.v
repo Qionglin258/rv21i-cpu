@@ -29,6 +29,7 @@ wire [31:0] dmem_rdata;
 wire [3:0]  uart_addr;
 wire [31:0] uart_wdata;
 wire        uart_we;
+wire        uart_re;
 wire [31:0] uart_rdata;
 
 wire [3:0]  gpio_addr;
@@ -64,6 +65,7 @@ simple_bus u_simple_bus(
     .uart_addr(uart_addr),
     .uart_wdata(uart_wdata),
     .uart_we(uart_we),
+    .uart_re(uart_re),
     .uart_rdata(uart_rdata),
     .gpio_addr(gpio_addr),
     .gpio_wdata(gpio_wdata),
@@ -89,6 +91,7 @@ uart #(
     .addr(uart_addr),
     .wdata(uart_wdata),
     .we(uart_we),
+    .re(uart_re),
     .rdata(uart_rdata),
     .uart_tx(uart_tx),
     .uart_rx(uart_rx)
