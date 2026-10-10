@@ -14,7 +14,6 @@ module cpu(
 
 // ===================== 1. Instruction Fetch:pc+imem =====================
 wire [31:0] next_pc; // decision is made in EX
-wire [31:0] pc_plus4;
 wire [31:0] if_pc_plus4;
 wire [31:0] imem_drdata;
 wire load_bubble;

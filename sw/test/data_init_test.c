@@ -13,7 +13,7 @@ volatile unsigned int  g_word        = 0x12345678u;   /* .data 单字       */
 volatile unsigned int  g_table[4]    = {11u, 22u, 33u, 44u}; /* .data 数组 */
 volatile signed int    g_neg         = -7;            /* .data 负数       */
 volatile unsigned char g_bytes[4]    = {0xA5, 0x5A, 0x00, 0xFF}; /* .data 字节 */
-volatile unsigned int  g_zero;                        /* .bss，应清零     */
+volatile unsigned int  g_zero;                        /* 未初始化，进入.bss，应清零     */
 
 int main(void) {
     int pass = 0;

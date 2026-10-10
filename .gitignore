@@ -1,3 +1,8 @@
 sim/work/
 sim/transcript
 sim/hex/transcript
+
+# RISC-V firmware build artifacts
+*.o
+*.elf
+*.bin

@@ -6,7 +6,7 @@ image that is loaded into instruction memory; the same SoC runs in simulation an
 Digilent Basys 3 board.
 
 - ISA: RV32I (`-march=rv32i -mabi=ilp32`), word and byte loads/stores (`lw/sw`, `lb/lbu/sb`)
-- Pipeline: load-use stall, branch/jump flush, EX/MEM and MEM/WB forwarding
+- Pipeline: load-use stall, branch/jump flush, EX/MEM,MEM/WB,and regfile forwarding
 - Peripherals: polled UART (TX and RX) and GPIO direction/output/input
 - Board: Digilent Basys 3 (Artix-7) — switches in, LEDs out, one USB for JTAG and UART
 
@@ -19,22 +19,46 @@ rtl/periph  uart, gpio
 rtl/soc_top soc_top
 board/basys3 board_top.v, basys3.xdc, imem.hex (Vivado top level)
 sw/test     start.s, link.ld, bin2memh.py and verification programs
-sw/gpio     on-board switch -> LED popcount demo
-sw/uart     on-board UART demos (TX counter, RX echo)
+sw/final    combined final demo (switch popcount LEDs + UART echo)
 ```
 
-## Memory map (simple_bus decodes mem_addr[15:12])
+## Memory map
+
+The CPU issues **byte addresses**. `simple_bus` selects a device from the top nibble
+`mem_addr[15:12]` (an address that matches no device is dropped, and such reads return 0); a
+selected peripheral is handed the register offset `mem_addr[3:0]`.
 
 | Address         | Device | Notes |
 |---|---|---|
-| `0x0000–0x0FFF` | dmem | 4 KB data RAM with byte strobes. Stack top is `0x1000`, grows down; `.data/.bss` live at the low end |
-| `0x1000`        | UART DATA | write = transmit a byte; read = received byte (the read clears RX-ready) |
-| `0x1004`        | UART STAT | bit0 = TX idle (~tx_busy), bit1 = RX byte ready |
-| `0x2000`        | GPIO dir  | bit = 1 makes the pin an output |
-| `0x2004`        | GPIO out  | output level |
-| `0x2008`        | GPIO in   | synchronized pin input |
-| `0x8000–0x8FFF` | imem read-back window | read-only, aliases imem physical `0x000–0xFFF`; used at boot to copy `.data`. Writes are ignored |
-| `0x1FFC`        | result port | decodes to an unused UART register, so writes are dropped; used by verification programs as an observation address |
+| `0x0000–0x0FFF` | dmem | 4 KB data RAM, see below |
+| `0x1000`        | UART DATA | write = push `wdata[7:0]` into the TX shifter; read = the received byte, and reading clears RX-ready |
+| `0x1004`        | UART STAT | bit0 = TX idle (`~tx_busy`), bit1 = a received byte is ready (`rx_ready`) |
+| `0x2000`        | GPIO dir  | per-bit direction: 1 = output, 0 = input |
+| `0x2004`        | GPIO out  | per-bit output level |
+| `0x2008`        | GPIO in   | read-only; board inputs after two synchronizer flip-flops |
+| `0x8000–0x8FFF` | imem read-back window | read-only alias of imem bytes `0x000–0xFFF`, see below |
+| `0x1FFC`        | result port | decodes to an unused UART offset, so the write is dropped; verification programs use it as an observation address |
+
+**Data RAM.** dmem stores 1024 32-bit words (`reg [31:0] mem[0:1023]`), i.e. 4096 bytes
+($2^{12}$ bytes = $2^{15}$ bits). The bus feeds it the word index `mem_addr[11:2]`; the low
+two bits `mem_addr[1:0]` select a byte within that word. Reads return the whole word
+combinationally, and `lb/lbu` pick the addressed byte and sign/zero-extend it back in the CPU.
+Compiled programs use the space from both ends: `.data` then `.bss` (the global/static
+variables) are placed from address 0 upward, while the stack starts at `_stack_top = 0x1000`
+and grows down. `start.s` loads `sp`  ( stack pointer ) with `0x1000` and every frame decrements it before
+storing. Address `0x1000` itself is never accessed.
+
+**GPIO.** The driven value is `gpio_out = dir_reg & out_reg` per bit, so a pin goes high only
+when its dir bit is 1 *and* its out bit is 1. The input port is always readable at `0x2008`
+regardless of the direction bits; the raw pins pass through two flip-flops first to avoid
+metastability. The Basys 3 switch/LED wiring is given in *Board bring-up*.
+
+**imem read-back window.** Besides the instruction-fetch port, imem has a second read-only
+data port: reading `0x8000 + n` returns imem byte `n`, and in the MEM stage the CPU muxes this
+data in instead of the bus (writes to the window are ignored). It lets the boot code pull the
+`.data` initial values out of imem — see *How initialized globals (.data) work*. Two ports are
+needed because, once the pipeline is full, an instruction fetch and a `.data` load can read two
+different imem addresses in the same cycle.
 
 ## Building firmware
 
@@ -45,8 +69,8 @@ riscv-none-elf-objcopy -O binary prog.elf prog.bin
 python bin2memh.py prog.bin imem.hex
 ```
 
-`imem.hex` is what `imem` loads with `$readmemh`. The board programs under `sw/gpio` and
-`sw/uart` reuse `../test/start.s`, `../test/link.ld` and `../test/bin2memh.py`; after
+`imem.hex` is what `imem` loads with `$readmemh`. The board program under `sw/final` reuses
+`../test/start.s`, `../test/link.ld` and `../test/bin2memh.py`; after
 building, copy the generated `imem.hex` over `board/basys3/imem.hex` and rebuild the
 bitstream. Useful inspection:
 
@@ -57,20 +81,22 @@ riscv-none-elf-objdump -h prog.elf                       # section VMA/LMA/size
 
 ## On-board programs (Basys 3)
 
-- `sw/gpio/gpio_calc_test.c` — popcount of the 8 switches on LD0..LD3; LD7 is a heartbeat.
-- `sw/uart/uart_tx_test.c` — prints a banner and a scrolling 32-bit hex counter to the PC (TX).
-- `sw/uart/uart_echo_test.c` — echoes typed characters back (RX + TX); Enter is expanded to CR+LF.
+- `sw/final/final_demo.c` — combined acceptance demo running both paths in one loop: the
+  popcount of the 8 switches on LD0..LD3, and UART echo of typed characters (RX + TX, Enter
+  expanded to CR+LF) after an `ECHO` banner. LD7 is a clock heartbeat independent of the CPU.
 
 ## Board bring-up (Basys 3)
 
 - The SoC is clocked at **6.25 MHz**: `board_top` divides the 100 MHz oscillator by 16 and
   feeds it through a `BUFG`. The asynchronous imem/dmem reads do not close timing at 100 MHz;
   the XDC declares the 6.25 MHz net as a generated clock so the whole SoC is timed.
-- Reset is a power-on reset pulse plus slide switch **SW15** (slide UP/ON to hold reset).
-  The center pushbutton is not used on this board.
-- Pins: SW0..SW7 drive `gpio_in[7:0]`; `gpio_out[15:8]` drives LD0..LD7 (LD7 is the
-  heartbeat). UART is **A18** (FPGA TX) and **B18** (FPGA RX), wired on-board to the FTDI
-  USB bridge.
+- Reset is slide switch **SW15** (slide UP/ON to hold reset), asserted asynchronously and
+  released synchronously to the 6.25 MHz CPU clock. At config the FPGA's GSR already
+  initializes every flip-flop; the two reset-sync stages start at 0 and briefly hold the core,
+  so no power-on counter is needed. The center pushbutton is not used on this board.
+- Pins: SW0..SW7 drive `gpio_in[7:0]`; `gpio_out[11:8]` drives LD0..LD3 (the popcount),
+  LD6..LD4 stay off and LD7 is the clock heartbeat. UART is **A18** (FPGA TX) and **B18**
+  (FPGA RX), wired on-board to the FTDI USB bridge.
 - A **single micro-USB cable** on the JTAG/PROG port both programs the FPGA and exposes the
   UART as a USB serial (COM) port. Open the COM port at **115200, 8 data bits, 1 stop bit,
   no parity, no flow control**.

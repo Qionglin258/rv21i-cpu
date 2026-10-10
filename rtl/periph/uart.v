@@ -1,6 +1,6 @@
 module uart #(
-    parameter integer CLK_FREQ  = 100000000, // clock driving the UART (sim: 100 MHz)
-    parameter integer BAUD_RATE = 115200     // standard 115200 8N1 in sim and on board
+    parameter integer CLK_FREQ  = 100000000, // for sim
+    parameter integer BAUD_BAUD = 115200
 )(
     input         clk,
     input         arst_n,

@@ -24,8 +24,12 @@ always@(*) begin
     mem_re = 1'b0;
     alu_a_sel = 2'b00;
 
+    // Grouped by what the instruction DOES: ALU op / load-store / control flow.
+    // The (R/I/S/B/U/J-format) tag only tells imm_gen how to build the immediate;
+    // it is orthogonal to function - e.g. load lw and jump jalr both use I-format
+    // but do completely different things.
     case (opcode)
-        7'b0110011: begin // R-type
+        7'b0110011: begin // ALU reg-reg (R-format): rd = rs1 op rs2
             reg_we = 1'b1;
             case ({funct7[5], funct3})
                 4'b0000: alu_ctrl = 4'b0000; // ADD
@@ -41,7 +45,7 @@ always@(*) begin
                 default: alu_ctrl = 4'b0000; // Default to ADD
             endcase
         end
-        7'b0010011: begin // I-type
+        7'b0010011: begin // ALU reg-imm (I-format): rd = rs1 op imm
             alu_src = 1'b1;
             reg_we = 1'b1;
             imm_type = 3'b001; // Immediate type for I-type
@@ -60,21 +64,21 @@ always@(*) begin
                 default: alu_ctrl = 4'b0000; // Default to ADDI
             endcase
         end
-        7'b0110111: begin // LUI
+        7'b0110111: begin // LUI (U-format): rd = imm << 12
             alu_a_sel = 2'b10;
             alu_src = 1'b1;
             reg_we = 1'b1;
             imm_type = 3'b100;
             alu_ctrl = 4'b0000;
         end
-        7'b0010111: begin // AUIPC
+        7'b0010111: begin // AUIPC (U-format): rd = pc + (imm << 12)
             alu_a_sel = 2'b01;
             alu_src = 1'b1;
             reg_we = 1'b1;
             imm_type = 3'b100;
             alu_ctrl = 4'b0000;
         end
-        7'b0000011: begin // Iw only
+        7'b0000011: begin // LOAD (I-format): lw/lbu/lb, rd <- mem[rs1+imm]
             alu_src = 1'b1;
             reg_we = 1'b1;
             imm_type = 3'b001;
@@ -82,13 +86,13 @@ always@(*) begin
             wb_sel = 2'b1;
             mem_re = 1'b1;
         end
-        7'b0100011: begin // Store:sw,sb,sh share the same ctrl signals
+        7'b0100011: begin // STORE (S-format): sw/sb, mem[rs1+imm] <- rs2
             alu_src = 1'b1;
             mem_we = 1'b1;
             imm_type = 3'b010; // Immediate type for S-type
             alu_ctrl = 4'b0000; // ADD for address calculation
         end
-        7'b1100011: begin // B-type,funct3 will be read directly in EX
+        7'b1100011: begin // BRANCH (B-format): beq/bne/blt/bge/bltu/bgeu, condition tested in EX
             imm_type = 3'b011; // Immediate type for B-type
             alu_ctrl = 4'b0001; // SUB for comparison
             branch_type = 2'b01; // Indicate branch instruction
@@ -110,14 +114,14 @@ always@(*) begin
                 default: alu_ctrl = 4'b0001; // Default to SUB for comparison
             endcase
         end
-        7'b1101111: begin // JAL
+        7'b1101111: begin // JAL (J-format): pc += imm, rd = pc+4 (return address)
             reg_we = 1'b1;
             branch_type = 2'b10; // Indicate JAL instruction
             imm_type = 3'b101; // Immediate type for J-type
             alu_ctrl = 4'b0000; // ADD for calculating return address
             wb_sel = 2'b10; // Write PC + 4 to register
         end
-        7'b1100111: begin // JALR
+        7'b1100111: begin // JALR (I-format): pc = rs1+imm, rd = pc+4 (return address)
             reg_we = 1'b1;
             alu_src = 1'b1; // Use immediate for address calculation
             branch_type = 2'b11; // Indicate JALR instruction
