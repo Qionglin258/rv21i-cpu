@@ -37,14 +37,14 @@ pc u_pc(
 );
 
 imem u_imem(
-    .addr(pc[11:0]),
+    .addr(pc[11:0]), // locate by byte,4096 bytes = 1024 instructions at most
     .rdata(instr),
     .daddr(mem_addr[11:0]),
     .drdata(imem_drdata)
 );
 
 // ---------- IF/ID pipeline registers ----------
-reg [31:0] if_id_pc;
+reg [31:0] if_id_pc; // to EX,pc calculations
 reg [31:0] if_id_instr;
 
 always @(posedge clk or negedge arst_n) begin
@@ -55,7 +55,7 @@ always @(posedge clk or negedge arst_n) begin
         if_id_pc <= 32'd0;
         if_id_instr <= 32'd0;
     end
-    else if(!load_bubble) begin
+    else if(!load_bubble) begin // if bubble,keep the values
         if_id_pc <= pc;
         if_id_instr <= instr;
     end
@@ -83,7 +83,7 @@ regfile u_regfile(
     .raddr2(if_id_instr[24:20]),
     .waddr(mem_wb_rd_addr),   // from WB stage
     .wdata(reg_wdata),        // from WB stage
-    .rdata1(rs1_data),
+    .rdata1(rs1_data), // 5-bit add in,32-bit data out
     .rdata2(rs2_data)
 );
 
@@ -209,10 +209,11 @@ assign alu_a = (id_ex_alu_a_sel == 2'b01) ? id_ex_pc :
                (id_ex_alu_a_sel == 2'b10) ? 32'd0 :
                rs1_forwarded;
 assign alu_b = id_ex_alu_src ? id_ex_imm : rs2_forwarded;
-assign pc_relative_target = id_ex_pc + id_ex_imm;
+assign pc_relative_target = id_ex_pc + id_ex_imm; // JAL,jump based on its own pc+imm.JAL's pc is id_ex_pc now,not if_id_pc or pc.when JAL(ex_pc_sel=01->flush&next_pc=prt),if_id_pc and id_ex_pc are flushed.
 assign jalr_target = {ex_alu_result[31:1], 1'b0};
 assign branch_flush = (ex_pc_sel != 2'b00);
 
+// alu result could be in ex_mem or mem_wb (or even in regfile but not written yet)instead of rdata from reg.so in cpu there are 2 forwarding,in regfile there is one.
 assign rs1_forwarded = 
     (ex_mem_reg_we && !ex_mem_mem_re && ex_mem_rd_addr != 5'd0 && ex_mem_rd_addr == id_ex_rs1_addr) ? ex_mem_alu_result : // if ex_mem_mem_re is 1, the data would be ready after the mem stage, so we cannot forward it here
     (mem_wb_reg_we && mem_wb_rd_addr != 5'd0 && mem_wb_rd_addr == id_ex_rs1_addr) ? reg_wdata :
@@ -281,7 +282,7 @@ always @(posedge clk or negedge arst_n) begin
     end
 end
 
-assign load_bubble =
+assign load_bubble = // bubble for load
     id_ex_mem_re &&
     (id_ex_rd_addr != 5'd0) &&
     ((id_ex_rd_addr == if_id_instr[19:15]) ||
@@ -291,9 +292,9 @@ assign load_bubble =
 assign mem_addr = ex_mem_alu_result;
 assign mem_we = ex_mem_mem_we;
 
-// .data init read-back window: 0x8000-0x8FFF -> imem physical 0-0xFFF (read-only)
-wire        imem_dsel     = (mem_addr[15:12] == 4'b1000);
-wire [31:0] mem_rdata_eff = imem_dsel ? imem_drdata : mem_rdata;
+// .data init read-back window: 0x8000-0x8FFF -> imem second read port (read-only)
+wire [31:0] mem_rdata_eff =
+    (mem_addr[15:12] == 4'b1000) ? imem_drdata : mem_rdata;
 
 assign mem_wdata =
     (ex_mem_mem_we && (ex_mem_funct3[1:0] == 2'b00)) ? // for store,mem_we=1,for funct3[1:0],sb=00,sw=10
@@ -305,6 +306,7 @@ assign mem_byte_en =
     (ex_mem_funct3[1:0] == 2'b00) ? (4'b0001 << ex_mem_alu_result[1:0]) :
                                      4'b1111;
 
+// ---------- MEM/WB pipeline registers ----------
 always @(posedge clk or negedge arst_n) begin
     if (!arst_n) begin
         mem_wb_alu_result <= 32'd0;

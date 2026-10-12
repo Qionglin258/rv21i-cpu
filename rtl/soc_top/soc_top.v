@@ -84,7 +84,7 @@ dmem u_dmem(
 
 uart #(
     .CLK_FREQ(UART_CLK_FREQ),
-    .BAUD_BAUD(UART_BAUD)
+    .BAUD(UART_BAUD)
 ) u_uart(
     .clk(clk),
     .arst_n(arst_n),

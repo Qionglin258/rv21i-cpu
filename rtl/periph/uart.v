@@ -1,6 +1,6 @@
 module uart #(
     parameter integer CLK_FREQ  = 100000000, // for sim
-    parameter integer BAUD_BAUD = 115200
+    parameter integer BAUD = 115200
 )(
     input         clk,
     input         arst_n,
@@ -12,7 +12,7 @@ module uart #(
     output        uart_tx,
     input         uart_rx
 );
-localparam DIVISOR      = CLK_FREQ / BAUD_RATE;
+localparam DIVISOR      = CLK_FREQ / BAUD;
 localparam HALF_DIVISOR = (DIVISOR > 1) ? DIVISOR / 2 : 1;
 
 // register map
