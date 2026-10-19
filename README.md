@@ -42,13 +42,13 @@ The SoC adds the bus and the peripherals:
 
 ```mermaid
 flowchart LR
-    CPU[cpu with imem] -->|memory port| BUS[simple_bus]
-    BUS --> DMEM[dmem]
-    BUS --> UART[uart]
-    BUS --> GPIO[gpio]
+    CPU[cpu with imem] <-->|addr/control + data| BUS[simple_bus]
+    BUS <--> DMEM[dmem]
+    BUS <--> UART[uart]
+    BUS <--> GPIO[gpio]
     UART <-->|uart_tx / uart_rx| FTDI[FTDI USB bridge]
-    GPIO -->|gpio_out| LED[LEDs]
     SW[switches] -->|gpio_in| GPIO
+    GPIO -->|gpio_out| LED[LEDs]
 ```
 
 **File layout**

@@ -38,8 +38,9 @@ module tb_cpu;
         .rdata(mem_rdata)
     );
 
-    // load the pipeline sequence over whatever the imem default image held
+    // load cpu.c after imem's own time-0 $readmemh, before the first edge at #5
     initial begin
+        #1;
         $readmemh("imem_cpu.hex", u_cpu.u_imem.mem);
     end
 
