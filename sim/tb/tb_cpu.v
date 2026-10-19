@@ -2,32 +2,56 @@
 
 module tb_cpu;
 
-reg clk;
-reg arst_n;
-wire [31:0] pc;
-wire [31:0] instr;
-wire [31:0] alu_result;
-wire [31:0] reg_wdata;
-    
-cpu u_cpu(
-    .clk(clk),
-    .arst_n(arst_n),
-    .pc(pc),
-    .instr(instr),
-    .alu_result(alu_result),
-    .reg_wdata(reg_wdata)
-);
+    reg         clk;
+    reg         arst_n;
+    wire [31:0] mem_addr;
+    wire [31:0] mem_wdata;
+    wire        mem_we;
+    wire [3:0]  mem_byte_en;
+    wire [31:0] mem_rdata;
+    wire [31:0] pc;
+    wire [31:0] instr;
+    wire [31:0] alu_result;
+    wire [31:0] reg_wdata;
 
-always #5 clk = ~clk;
+    cpu u_cpu(
+        .clk(clk),
+        .arst_n(arst_n),
+        .mem_rdata(mem_rdata),
+        .mem_addr(mem_addr),
+        .mem_wdata(mem_wdata),
+        .mem_we(mem_we),
+        .mem_byte_en(mem_byte_en),
+        .pc(pc),
+        .instr(instr),
+        .alu_result(alu_result),
+        .reg_wdata(reg_wdata)
+    );
 
-initial begin
-    clk = 1'b0;
-    arst_n = 1'b0;
-    #15;
-    arst_n = 1'b1;
-    #1000;
-    $finish;
-end
+    // dmem wired straight to the CPU core (no simple_bus, no UART/GPIO)
+    dmem u_dmem(
+        .clk(clk),
+        .we(mem_we),
+        .addr(mem_addr[11:2]),
+        .wdata(mem_wdata),
+        .byte_en(mem_byte_en),
+        .rdata(mem_rdata)
+    );
+
+    // load the pipeline sequence over whatever the imem default image held
+    initial begin
+        $readmemh("imem_cpu.hex", u_cpu.u_imem.mem);
+    end
+
+    always #5 clk = ~clk;
+
+    initial begin
+        clk    = 1'b0;
+        arst_n = 1'b0;
+        #15;
+        arst_n = 1'b1;
+        #2000;                  // the 19-instruction sequence finishes well before this
+        $finish;
+    end
 
 endmodule
-    

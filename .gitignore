@@ -6,3 +6,6 @@ sim/hex/transcript
 *.o
 *.elf
 *.bin
+
+# simulation instruction images (regenerated from sw; the board image is in board/basys3)
+sim/hex/*.hex

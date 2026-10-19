@@ -1,5 +1,5 @@
 /*
- * final_demo.c - combined final acceptance demo for Basys 3 (RV32I minimal SoC).
+ * soc.c - full SoC acceptance demo for Basys 3 (RV32I minimal SoC).
  *
  * Exercises both on-board I/O paths at once in a single endless loop:
  *   - GPIO: SW0..SW7 are inputs (gpio low byte, dir = 0). The popcount of the
@@ -21,12 +21,11 @@
  * No string literals: the link script maps .rodata into instruction space the
  * data port cannot read, so the banner is sent from immediate characters.
  *
- * Build from sw/final (reuses ../test start.s / link.ld / bin2memh.py):
+ * Build from sw (start.s, link.ld and bin2memh.py are in the same directory):
  *   riscv-none-elf-gcc -march=rv32i -mabi=ilp32 -msmall-data-limit=0 -mno-relax \
- *     -O2 -nostdlib -ffreestanding -Wall -T ../test/link.ld ../test/start.s \
- *     final_demo.c -o t.elf
- *   riscv-none-elf-objcopy -O binary t.elf t.bin
- *   python ../test/bin2memh.py t.bin imem.hex
+ *     -O2 -nostdlib -ffreestanding -Wall -T link.ld start.s soc.c -o soc.elf
+ *   riscv-none-elf-objcopy -O binary soc.elf soc.bin
+ *   python bin2memh.py soc.bin imem.hex
  */
 
 #define UART_DATA (*(volatile unsigned int *)0x1000)
